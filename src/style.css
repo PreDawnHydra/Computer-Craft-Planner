@@ -67,3 +67,57 @@ body {
 .mc-font .mc-title { font-size: 16px; text-shadow: 2px 2px 0 #3f3f3f; }
 .mc-font .mc-btn { font-size: 16px; text-shadow: 2px 2px 0 #383838; }
 .mc-font .mc-status, .mc-font .mc-hint { font-size: 16px; text-shadow: 2px 2px 0 #282828; }
+
+/* ---------- 3D world ---------- */
+#game { position: relative; flex: 1; min-height: 0; overflow: hidden; --hb-scale: 2; }
+@media (max-width: 480px) { #game { --hb-scale: 1; } }
+.world-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; image-rendering: pixelated; }
+.crosshair { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; pointer-events: none; mix-blend-mode: difference; }
+.crosshair::before, .crosshair::after { content: ""; position: absolute; background: #fff; }
+.crosshair::before { left: 8px; top: 0; width: 2px; height: 18px; }
+.crosshair::after { left: 0; top: 8px; width: 18px; height: 2px; }
+.hotbar {
+  position: absolute; left: 50%; bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  width: calc(var(--hb-scale) * 182px); height: calc(var(--hb-scale) * 22px);
+  transform: translateX(-50%); pointer-events: none;
+  background: rgba(0,0,0,.5); outline: 2px solid #000;
+}
+.mc-textures .hotbar { background: var(--mc-hotbar) 0 0 / 100% 100%; outline: none; image-rendering: pixelated; }
+.hotbar-sel {
+  position: absolute; top: calc(var(--hb-scale) * -1px); width: calc(var(--hb-scale) * 24px); height: calc(var(--hb-scale) * 24px);
+  outline: 2px solid #fff; outline-offset: -2px;
+}
+.mc-textures .hotbar-sel { background: var(--mc-hotbar-sel) 0 0 / 100% 100%; outline: none; image-rendering: pixelated; }
+.hotbar-icon { position: absolute; top: calc(var(--hb-scale) * 3px); width: calc(var(--hb-scale) * 16px); height: calc(var(--hb-scale) * 16px); image-rendering: pixelated; }
+.hud-tip {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--hb-scale) * 22px + 24px + env(safe-area-inset-bottom, 0px));
+  text-shadow: 2px 2px 0 #3f3f3f; pointer-events: none; white-space: nowrap;
+}
+.overlay {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(16,16,16,.6); padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.mc-menu { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 640px; text-align: center; }
+.mc-menu h1 { font-size: 32px; font-weight: normal; margin: 0 0 16px; text-shadow: 4px 4px 0 #3f3f3f; }
+.mc-btn.wide { width: min(400px, 100%); }
+.mc-help { color: #e0e0e0; text-shadow: 2px 2px 0 #282828; line-height: 1.5; margin: 16px 0 0; }
+.gui-computer { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.gui-title { text-shadow: 2px 2px 0 #3f3f3f; }
+/* inventory panel, styled like Minecraft's container GUIs */
+.mc-panel {
+  background: #c6c6c6; color: #404040; padding: 16px; max-width: min(760px, 100%); max-height: 100%; overflow: auto; outline: none;
+  border: 2px solid #000; box-shadow: inset 4px 4px 0 #fff, inset -4px -4px 0 #555;
+}
+.mc-panel-title { margin-bottom: 8px; }
+.mc-panel-group { margin: 12px 0 4px; color: #404040; }
+.mc-slots { display: flex; flex-wrap: wrap; }
+.mc-slot {
+  width: 36px; height: 36px; padding: 2px; margin: 0; cursor: pointer;
+  background: #8b8b8b; border: 0; box-shadow: inset 2px 2px 0 #373737, inset -2px -2px 0 #fff;
+}
+.mc-slot:hover, .mc-slot:focus-visible { background: #c5c5c5; outline: none; }
+.mc-slot img { width: 32px; height: 32px; image-rendering: pixelated; display: block; }
+.mc-panel .mc-help { color: #404040; text-shadow: none; }
+[hidden] { display: none !important; }

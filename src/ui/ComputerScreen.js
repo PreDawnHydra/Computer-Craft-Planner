@@ -17,7 +17,9 @@ function loadImg(src) {
 }
 
 export class ComputerScreen {
-  constructor(handle, { family = 'advanced', width = 51, height = 19 } = {}) {
+  constructor(handle, { family = 'advanced', width = 51, height = 19, onClose = null } = {}) {
+    this.onClose = onClose;
+    this.cleanup = [];
     this.handle = handle;
     this.family = family;
     this.colour = family !== 'normal';
@@ -34,10 +36,12 @@ export class ComputerScreen {
     this.el.append(this.frame, this.term);
 
     this.renderer = new TerminalRenderer(this.term, { scale: this.scale, colour: this.colour });
-    handle.on('term', (snap) => {
+    const onSnap = (snap) => {
       if (snap.width !== this.termW || snap.height !== this.termH) { this.termW = snap.width; this.termH = snap.height; this.layout(); }
       this.renderer.update(snap);
-    });
+    };
+    this.cleanup.push(handle.on('term', onSnap));
+    if (handle.lastSnap) onSnap(handle.lastSnap);
     this.blinkTimer = setInterval(() => this.renderer.setBlink(Math.floor(Date.now() / 400) % 2 === 0), 100);
 
     this.bindInput();
@@ -98,6 +102,8 @@ export class ComputerScreen {
     const shortcut = { KeyT: () => h.queueEvent('terminate'), KeyR: () => h.reboot(), KeyS: () => h.shutdown() };
 
     this.el.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.code === 'Escape' && this.onClose) { e.preventDefault(); this.onClose(); return; }
       const code = lwjglKey(e);
       const isPaste = (e.ctrlKey || e.metaKey) && e.code === 'KeyV';
       if (!isPaste) e.preventDefault();
@@ -112,6 +118,7 @@ export class ComputerScreen {
     });
     this.el.addEventListener('keyup', (e) => {
       e.preventDefault();
+      e.stopPropagation();
       if (held.has(e.code)) { clearTimeout(held.get(e.code)); held.delete(e.code); }
       if (e.key === 'Control') { for (const t of held.values()) clearTimeout(t); held.clear(); }
       const code = lwjglKey(e);
@@ -142,17 +149,20 @@ export class ComputerScreen {
       down = btn(e.button); last = c;
       h.queueEvent('mouse_click', down, c[0], c[1]);
     });
-    window.addEventListener('mousemove', (e) => {
+    const onMove = (e) => {
       if (down === null) return;
       const c = cell(e); if (!c) return;
       if (c[0] !== last[0] || c[1] !== last[1]) { last = c; h.queueEvent('mouse_drag', down, c[0], c[1]); }
-    });
-    window.addEventListener('mouseup', (e) => {
+    };
+    const onUp = (e) => {
       if (down === null) return;
       const c = cell(e) || last;
       h.queueEvent('mouse_up', down, c[0], c[1]);
       down = null;
-    });
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    this.cleanup.push(() => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); });
     this.term.addEventListener('wheel', (e) => {
       e.preventDefault();
       if (!this.colour) return;
@@ -162,5 +172,5 @@ export class ComputerScreen {
   }
 
   focus() { this.el.focus(); }
-  destroy() { clearInterval(this.blinkTimer); this.el.remove(); }
+  destroy() { clearInterval(this.blinkTimer); for (const fn of this.cleanup) fn(); this.el.remove(); }
 }
