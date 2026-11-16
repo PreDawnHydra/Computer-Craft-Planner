@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ComputerCraft Emulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <link rel="icon" href="assets/computercraft/textures/blocks/computerFrontOnAdvanced.png">
+</head>
+<body>
+  <header class="mc-bar">
+    <img class="mc-icon" src="assets/computercraft/textures/blocks/computerFrontOnAdvanced.png" alt="">
+    <span class="mc-title" id="title">Computer #0</span>
+    <span class="mc-status" id="status">Off</span>
+    <span class="spacer"></span>
+    <button class="mc-btn" id="btn-power" title="Turn on / shut down (Ctrl+S held)">Power</button>
+    <button class="mc-btn" id="btn-reboot" title="Reboot (Ctrl+R held)">Reboot</button>
+    <button class="mc-btn" id="btn-terminate" title="Send terminate (Ctrl+T held)">Terminate</button>
+  </header>
+  <main id="stage"></main>
+  <footer class="mc-hint">Click the screen to type. Hold Ctrl+T, Ctrl+R or Ctrl+S to terminate, reboot or shut down.</footer>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
