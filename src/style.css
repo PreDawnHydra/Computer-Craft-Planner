@@ -121,3 +121,10 @@ body {
 .mc-slot img { width: 32px; height: 32px; image-rendering: pixelated; display: block; }
 .mc-panel .mc-help { color: #404040; text-shadow: none; }
 [hidden] { display: none !important; }
+.mc-panel p { margin: 8px 0; }
+.mc-disk-list { display: flex; flex-direction: column; gap: 4px; }
+/* Minecraft text field */
+.mc-input { display: block; width: min(400px, 100%); box-sizing: border-box; margin: 12px auto; padding: 6px 8px;
+  background: #000; color: #e0e0e0; border: 2px solid #a0a0a0; font: inherit; outline: none; }
+.mc-input:focus { border-color: #fff; }
+.mc-help code { color: #ffff55; word-break: break-all; }

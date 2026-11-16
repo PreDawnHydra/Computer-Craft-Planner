@@ -6,6 +6,7 @@ import {
   LuaError, toBytes, pushValue, setGlobalApi, argStr, argNum, argBool, fmtNum,
 } from './luabridge.js';
 import { Terminal } from './terminal.js';
+import { makeTermApi } from './termapi.js';
 import { FileSystem, MemoryMount, FSError, sanitizePath, getName, getDir, openHandle } from './filesystem.js';
 import preludeSrc from './prelude.lua?raw';
 
@@ -240,60 +241,7 @@ export class Computer {
 
   // ---------- APIs ----------
 
-  parseColour(args, i) {
-    const c = argNum(args, i, 'number');
-    if (c <= 0) throw new LuaError('Colour out of range');
-    const idx = Math.floor(Math.log2(c));
-    if (idx < 0 || idx > 15) throw new LuaError('Colour out of range');
-    return idx;
-  }
-
-  termApi() {
-    const t = this.terminal;
-    const self = this;
-    const setText = (a) => {
-      const c = self.parseColour(a, 0);
-      if (!self.colour && c !== 0 && c !== 15) throw new LuaError('Colour not supported');
-      t.textColour = c;
-    };
-    const setBack = (a) => {
-      const c = self.parseColour(a, 0);
-      if (!self.colour && c !== 0 && c !== 15) throw new LuaError('Colour not supported');
-      t.backgroundColour = c;
-    };
-    const isColour = () => self.colour;
-    const getText = () => 1 << t.textColour;
-    const getBack = () => 1 << t.backgroundColour;
-    return {
-      write: (a) => {
-        let s = a[0];
-        s = s === null || s === undefined ? '' : (typeof s === 'number' ? fmtNum(s) : String(s));
-        t.write(s.replace(/[\t]/g, ' '));
-      },
-      blit: (a) => {
-        const s = argStr(a, 0, 'string, string, string');
-        const fg = argStr(a, 1, 'string, string, string');
-        const bg = argStr(a, 2, 'string, string, string');
-        if (fg.length !== s.length || bg.length !== s.length) throw new LuaError('Arguments must be the same length');
-        t.blit(s, fg.toLowerCase(), bg.toLowerCase());
-      },
-      scroll: (a) => { t.scroll(Math.floor(argNum(a, 0, 'number'))); },
-      setCursorPos: (a) => {
-        const x = Math.floor(argNum(a, 0, 'number, number')), y = Math.floor(argNum(a, 1, 'number, number'));
-        t.setCursorPos(x - 1, y - 1);
-      },
-      setCursorBlink: (a) => { t.setCursorBlink(argBool(a, 0, 'boolean')); },
-      getCursorPos: () => [t.cursorX + 1, t.cursorY + 1],
-      getSize: () => [t.width, t.height],
-      clear: () => { t.clear(); },
-      clearLine: () => { t.clearLine(); },
-      setTextColour: setText, setTextColor: setText,
-      setBackgroundColour: setBack, setBackgroundColor: setBack,
-      isColour, isColor: isColour,
-      getTextColour: getText, getTextColor: getText,
-      getBackgroundColour: getBack, getBackgroundColor: getBack,
-    };
-  }
+  termApi() { return makeTermApi(this.terminal, () => this.colour); }
 
   fsApi() {
     const fs = () => this.fs;
@@ -408,6 +356,16 @@ export class Computer {
     };
   }
 
+  // Mount an extra filesystem (e.g. a floppy disk) at a top-level path, now and after reboots
+  mount(path, mount) {
+    this.extraMounts.set(path, mount);
+    if (this.on && this.fs) this.fs.mount(path, mount);
+  }
+  unmount(path) {
+    this.extraMounts.delete(path);
+    if (this.on && this.fs) this.fs.unmount(path);
+  }
+
   // Called by the host when a peripheral appears or disappears on a side
   peripheralChanged(side, attached) {
     this.queueEvent(attached ? 'peripheral' : 'peripheral_detach', [side]);
@@ -498,7 +456,7 @@ export class Computer {
         if (headers) for (const [k, v] of headers) if (typeof k === 'string') init.headers[k] = String(v);
         if (post !== null) init.body = toBytes(post);
         const proxy = self.opts.httpProxy; // optional CORS proxy prefix
-        fetch(proxy ? proxy + encodeURIComponent(url) : url, init).then(async (res) => {
+        fetch(!proxy ? url : proxy.includes('{url}') ? proxy.replace('{url}', encodeURIComponent(url)) : proxy + encodeURIComponent(url), init).then(async (res) => {
           const buf = new Uint8Array(await res.arrayBuffer());
           let data = '';
           for (let i = 0; i < buf.length; i += 8192) data += String.fromCharCode.apply(null, buf.subarray(i, i + 8192));

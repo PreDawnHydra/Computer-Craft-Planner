@@ -41,6 +41,6 @@ const { chromium } = require('playwright');
   await page.keyboard.press('Digit2');
   await page.waitForTimeout(800);
   await page.screenshot({ path: dir + '/w4-placed.png' });
-  console.log('blocks:', await page.evaluate(() => app.world.blocks.size), 'computers:', await page.evaluate(() => app.computers.size));
+  console.log('blocks:', await page.evaluate(() => app.world.blocks.size), 'computers:', await page.evaluate(() => app.sim.proxies.size));
   await browser.close();
 })();

@@ -22,6 +22,7 @@ const mcNames = new Set([...reg.matchAll(/mc:([a-z_]+)/g)].map((m) => m[1]).conc
 const ccNames = new Set([...reg.matchAll(/cc:([A-Za-z_]+)/g)].map((m) => m[1]));
 for (const n of mcNames) { const rel = 'assets/minecraft/textures/blocks/' + n + '.png'; if (fs.existsSync(path.join(dist, rel))) copy(rel); }
 for (const n of ccNames) { const rel = 'assets/computercraft/textures/blocks/' + n + '.png'; if (fs.existsSync(path.join(dist, rel))) copy(rel); }
+for (const f of fs.readdirSync(path.join(dist, 'assets/computercraft/textures/blocks'))) if (/^(adv)?[Mm]onitor\d+\.png$/.test(f)) copy('assets/computercraft/textures/blocks/' + f); // monitor names are built at runtime
 if (fs.existsSync(path.join(dist, 'assets/minecraft/textures/font/ascii.png'))) copy('assets/minecraft/textures/font/ascii.png');
 for (const f of ['widgets.png', 'options_background.png']) if (fs.existsSync(path.join(dist, 'assets/minecraft/textures/gui', f))) copy('assets/minecraft/textures/gui/' + f);
 fs.writeFileSync(path.join(out, 'files.json'), JSON.stringify(files));
