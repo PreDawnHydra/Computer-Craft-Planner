@@ -1,0 +1,24 @@
+{
+  "name": "computer-craft-planner",
+  "version": "1.0.0",
+  "description": "ComputerCraft 1.7.10 emulator in the browser",
+  "scripts": {
+    "postinstall": "node scripts/patch-fengari.cjs && node scripts/build-rom.cjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:boot": "vite-node test/boot.test.mjs --"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "fengari": "0.1.4",
+    "jszip": "3.10.1",
+    "three": "0.160.0"
+  },
+  "devDependencies": {
+    "vite": "5.4.11",
+    "vite-node": "2.1.8"
+  },
+  "private": true,
+  "type": "module"
+}
