@@ -4,7 +4,7 @@ export default defineConfig({
   base: './',
   define: {
     // fengari reads its config from process.env
-    'process.env.FENGARICONF': 'undefined',
+    'process.env.FENGARICONF': '""',
   },
   esbuild: { charset: 'ascii' },
   worker: { format: 'es' },

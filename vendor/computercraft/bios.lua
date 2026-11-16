@@ -1,10 +1,10 @@
 
+local nativesetfenv = setfenv
 local nativegetfenv = getfenv
 if _VERSION == "Lua 5.1" then
-    -- If we're on Lua 5.1, install parts of the Lua 5.2/5.3 API so that programs can be written against it
+    -- Install parts of the Lua 5.2 API so that programs can be written against it now
     local nativeload = load
     local nativeloadstring = loadstring
-    local nativesetfenv = setfenv
     function load( x, name, mode, env )
         if mode ~= nil and mode ~= "t" then
             error( "Binary chunk loading prohibited", 2 )
@@ -41,9 +41,8 @@ if _VERSION == "Lua 5.1" then
         end        
     end
     table.unpack = unpack
-    table.pack = function( ... ) return { n = select( "#", ... ), ... } end
+    table.pack = function( ... ) return { ... } end
 
-    -- Install the bit32 api
     local nativebit = bit
     bit32 = {}
     bit32.arshift = nativebit.brshift
@@ -68,72 +67,34 @@ if _VERSION == "Lua 5.1" then
     end
 end
 
-if _VERSION == "Lua 5.3" then
-    -- If we're on Lua 5.3, install the bit32 api from Lua 5.2
-    -- (Loaded from a string so this file will still parse on <5.3 lua)
-    load( [[
-        bit32 = {}
-
-        function bit32.arshift( n, bits )
-            if type(n) ~= "number" or type(bits) ~= "number" then
-                error( "Expected number, number", 2 )
+-- Install fix for luaj's broken string.sub/string.find
+do
+    local nativestringfind = string.find
+    local nativestringsub = string.sub
+    local nativepcall = pcall
+    local stringCopy = {}
+    for k,v in pairs(string) do
+        stringCopy[k] = v
+    end
+    stringCopy.sub = function( s, start, _end )
+        local ok, r = nativepcall( nativestringsub, s, start, _end )
+        if ok then
+            if r then
+                return r .. ""
             end
-            return n >> bits
+            return nil
+        else
+            error( r, 2 )
         end
-
-        function bit32.band( m, n )
-            if type(m) ~= "number" or type(n) ~= "number" then
-                error( "Expected number, number", 2 )
-            end
-            return m & n
-        end
-
-        function bit32.bnot( n )
-            if type(n) ~= "number" then
-                error( "Expected number", 2 )
-            end
-            return ~n
-        end
-
-        function bit32.bor( m, n )
-            if type(m) ~= "number" or type(n) ~= "number" then
-                error( "Expected number, number", 2 )
-            end
-            return m | n
-        end
-
-        function bit32.btest( m, n )
-            if type(m) ~= "number" or type(n) ~= "number" then
-                error( "Expected number, number", 2 )
-            end
-            return (m & n) ~= 0
-        end
-
-        function bit32.bxor( m, n )
-            if type(m) ~= "number" or type(n) ~= "number" then
-                error( "Expected number, number", 2 )
-            end
-            return m ~ n
-        end
-
-        function bit32.lshift( n, bits )
-            if type(n) ~= "number" or type(bits) ~= "number" then
-                error( "Expected number, number", 2 )
-            end
-            return n << bits
-        end
-
-        function bit32.rshift( n, bits )
-            if type(n) ~= "number" or type(bits) ~= "number" then
-                error( "Expected number, number", 2 )
-            end
-            return n >> bits
-        end
-    ]] )()
+    end
+    stringCopy.find = function( s, ... )
+        return nativestringfind( s .. "", ... );
+    end
+    string = stringCopy
 end
 
-if string.find( _HOST, "ComputerCraft" ) == 1 then
-    -- Prevent access to metatables or environments of strings, as these are global between all computers
+-- Prevent access to metatables or environments of strings, as these are global between all computers
+do
     local nativegetmetatable = getmetatable
     local nativeerror = error
     local nativetype = type
@@ -252,27 +213,20 @@ end
 
 function print( ... )
     local nLinesPrinted = 0
-    local nLimit = select("#", ... )
-    for n = 1, nLimit do
-        local s = tostring( select( n, ... ) )
-        if n < nLimit then
-            s = s .. "\t"
-        end
-        nLinesPrinted = nLinesPrinted + write( s )
+    for n,v in ipairs( { ... } ) do
+        nLinesPrinted = nLinesPrinted + write( tostring( v ) )
     end
     nLinesPrinted = nLinesPrinted + write( "\n" )
     return nLinesPrinted
 end
 
 function printError( ... )
-    local oldColour
     if term.isColour() then
-        oldColour = term.getTextColour()
         term.setTextColour( colors.red )
     end
     print( ... )
     if term.isColour() then
-        term.setTextColour( oldColour )
+        term.setTextColour( colors.white )
     end
 end
 
@@ -362,13 +316,28 @@ function read( _sReplaceChar, _tHistory, _fnComplete )
 
             -- Find the common prefix of all the other suggestions which start with the same letter as the current one
             local sCompletion = tCompletions[ nCompletion ]
-            sLine = sLine .. sCompletion
-            nPos = string.len( sLine )
+            local sFirstLetter = string.sub( sCompletion, 1, 1 )
+            local sCommonPrefix = sCompletion
+            for n=1,#tCompletions do
+                local sResult = tCompletions[n]
+                if n ~= nCompletion and string.find( sResult, sFirstLetter, 1, true ) == 1 then
+                    while #sCommonPrefix > 1 do
+                        if string.find( sResult, sCommonPrefix, 1, true ) == 1 then
+                            break
+                        else
+                            sCommonPrefix = string.sub( sCommonPrefix, 1, #sCommonPrefix - 1 )
+                        end
+                    end
+                end
+            end
 
-            -- Redraw
-            recomplete()
-            redraw()
+            -- Append this string
+            sLine = sLine .. sCommonPrefix
+            nPos = string.len( sLine )
         end
+
+        recomplete()
+        redraw()
     end
     while true do
         local sEvent, param = os.pullEvent()
@@ -539,12 +508,15 @@ loadfile = function( _sFile, _tEnv )
     return nil, "File not found"
 end
 
-dofile = function( _sFile )
-    local fnFile, e = loadfile( _sFile, _G )
-    if fnFile then
-        return fnFile()
-    else
-        error( e, 2 )
+if _VERSION == "Lua 5.1" and not _CC_DISABLE_LUA51_FEATURES then
+    dofile = function( _sFile )
+        local fnFile, e = loadfile( _sFile )
+        if fnFile then
+            setfenv( fnFile, getfenv(2) )
+            return fnFile()
+        else
+            error( e, 2 )
+        end
     end
 end
 
@@ -810,57 +782,15 @@ if bAPIError then
     term.setCursorPos( 1,1 )
 end
 
--- Set default settings
-settings.set( "shell.allow_startup", true )
-settings.set( "shell.allow_disk_startup", (commands == nil) )
-settings.set( "shell.autocomplete", true )
-settings.set( "edit.autocomplete", true )
-settings.set( "lua.autocomplete", true )
-settings.set( "list.show_hidden", false )
-if term.isColour() then
-    settings.set( "bios.use_multishell", true )
-end
-if _CC_DEFAULT_SETTINGS then
-    for sPair in string.gmatch( _CC_DEFAULT_SETTINGS, "[^,]+" ) do
-        local sName, sValue = string.match( sPair, "([^=]*)=(.*)" )
-        if sName and sValue then
-            local value
-            if sValue == "true" then
-                value = true
-            elseif sValue == "false" then
-                value = false
-            elseif sValue == "nil" then
-                value = nil
-            elseif tonumber(sValue) then
-                value = tonumber(sValue)
-            else
-                value = sValue
-            end
-            if value ~= nil then
-                settings.set( sName, value )
-            else
-                settings.unset( sName )
-            end
-        end
-    end
-end
-
--- Load user settings
-if fs.exists( ".settings" ) then
-    settings.load( ".settings" )
-end
-
 -- Run the shell
 local ok, err = pcall( function()
     parallel.waitForAny( 
         function()
-            local sShell
-            if term.isColour() and settings.get( "bios.use_multishell" ) then
-                sShell = "rom/programs/advanced/multishell"
+            if term.isColour() then
+                os.run( {}, "rom/programs/advanced/multishell" )
             else
-                sShell = "rom/programs/shell"
+                os.run( {}, "rom/programs/shell" )
             end
-            os.run( {}, sShell )
             os.run( {}, "rom/programs/shutdown" )
         end,
         function()

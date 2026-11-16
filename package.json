@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "description": "ComputerCraft 1.7.10 emulator in the browser",
   "scripts": {
-    "postinstall": "node scripts/patch-fengari.cjs && node scripts/build-rom.cjs",
+    "postinstall": "node scripts/patch-fengari.cjs && node scripts/build-rom.cjs && (bash scripts/fetch-minecraft-assets.sh || echo Minecraft textures not fetched, using fallback look)",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:boot": "vite-node test/boot.test.mjs --"
+    "test:boot": "vite-node test/boot.test.mjs --",
+    "fetch:minecraft": "bash scripts/fetch-minecraft-assets.sh"
   },
   "license": "UNLICENSED",
   "dependencies": {

@@ -80,11 +80,7 @@ function pagedPrint( _sText, _nFreeLines )
     -- Print the text
     local result
     local ok, err = pcall( function()
-        if _sText ~= nil then
-            result = print( _sText )
-        else
-            result = print()
-        end
+        result = print( _sText )
     end )
 
     -- Removed the redirector
@@ -229,7 +225,7 @@ end
 
 empty_json_array = {}
 
-local function serializeJSONImpl( t, tTracking, bNBTStyle )
+local function serializeJSONImpl( t, tTracking )
     local sType = type(t)
     if t == empty_json_array then
         return "[]"
@@ -251,12 +247,7 @@ local function serializeJSONImpl( t, tTracking, bNBTStyle )
             local nArraySize = 0
             for k,v in pairs(t) do
                 if type(k) == "string" then
-                    local sEntry
-                    if bNBTStyle then
-                        sEntry = tostring(k) .. ":" .. serializeJSONImpl( v, tTracking, bNBTStyle )
-                    else
-                        sEntry = string.format( "%q", k ) .. ":" .. serializeJSONImpl( v, tTracking, bNBTStyle )
-                    end
+                    local sEntry = serializeJSONImpl( k, tTracking ) .. ":" .. serializeJSONImpl( v, tTracking )
                     if nObjectSize == 0 then
                         sObjectResult = sObjectResult .. sEntry
                     else
@@ -266,7 +257,7 @@ local function serializeJSONImpl( t, tTracking, bNBTStyle )
                 end
             end
             for n,v in ipairs(t) do
-                local sEntry = serializeJSONImpl( v, tTracking, bNBTStyle )
+                local sEntry = serializeJSONImpl( v, tTracking )
                 if nArraySize == 0 then
                     sArrayResult = sArrayResult .. sEntry
                 else
@@ -311,25 +302,16 @@ function unserialize( s )
     return nil
 end
 
-function serializeJSON( t, bNBTStyle )
+function serializeJSON( t )
     local tTracking = {}
-    return serializeJSONImpl( t, tTracking, bNBTStyle or false )
+    return serializeJSONImpl( t, tTracking )
 end
 
 function urlEncode( str )
     if str then
         str = string.gsub(str, "\n", "\r\n")
-        str = string.gsub(str, "([^A-Za-z0-9 %-%_%.])", function(c)
-            local n = string.byte(c)
-            if n < 128 then
-                -- ASCII
-                return string.format("%%%02X", n)
-            else
-                -- Non-ASCII (encode as UTF-8)
-                return
-                    string.format("%%%02X", 192 + bit32.band( bit32.arshift(n,6), 31 ) ) ..
-                    string.format("%%%02X", 128 + bit32.band( n, 63 ) )
-            end
+        str = string.gsub(str, "([^%w ])", function(c)
+            return string.format("%%%02X", string.byte(c))
         end )
         str = string.gsub(str, " ", "+")
     end

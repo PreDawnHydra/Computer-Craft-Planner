@@ -1,6 +1,6 @@
-New Features in ComputerCraft 1.79:
+New Features in ComputerCraft 1.75:
 
-* Ported ComputerCraftEdu to Minecraft 1.8.9
-* Fixed a handful of bugs in ComputerCraft
+* Fixed monitors sometimes rendering without part of their text.
+* Fixed a regression in the "bit" API.
 
 Type "help changelog" to see the full version history.

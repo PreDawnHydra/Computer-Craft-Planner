@@ -1,6 +1,9 @@
 import './style.css';
 import { ComputerHandle } from './computer/ComputerHandle.js';
 import { ComputerScreen } from './ui/ComputerScreen.js';
+import { applyMinecraftTheme } from './ui/mcTheme.js';
+
+applyMinecraftTheme();
 
 const handle = new ComputerHandle({ id: 0, autoOn: true });
 const screen = new ComputerScreen(handle, { family: 'advanced' });

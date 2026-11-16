@@ -1,4 +1,4 @@
-local tArgs = { ... }
+tArgs = { ... }
 if #tArgs > 0 then
 	sTopic = tArgs[1]
 else

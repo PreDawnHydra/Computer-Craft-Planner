@@ -16,5 +16,6 @@ const copy = (rel) => { fs.mkdirSync(path.dirname(path.join(out, rel)), { recurs
 for (const f of fs.readdirSync(path.join(dist, 'assets'))) if (/\.(js|css)$/.test(f)) copy('assets/' + f);
 for (const f of fs.readdirSync(path.join(dist, 'assets/computercraft/textures/gui'))) copy('assets/computercraft/textures/gui/' + f);
 copy('assets/computercraft/textures/blocks/computerFrontOnAdvanced.png');
+for (const f of ['widgets.png', 'options_background.png']) if (fs.existsSync(path.join(dist, 'assets/minecraft/textures/gui', f))) copy('assets/minecraft/textures/gui/' + f);
 fs.writeFileSync(path.join(out, 'files.json'), JSON.stringify(files));
 console.log(files.length, 'files');

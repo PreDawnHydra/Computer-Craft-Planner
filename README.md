@@ -6,7 +6,7 @@ A browser-based emulator for **ComputerCraft 1.7.10** (CC 1.75 era), with a plan
 
 **Milestone 1, one CraftOS computer in the browser** (this branch):
 
-- Real `bios.lua` and CraftOS ROM (from dan200's open-source ComputerCraft, v1.79, the closest available to 1.75)
+- Real ComputerCraft **1.75** `bios.lua` and CraftOS ROM, the last release for Minecraft 1.7.10 (see `vendor/computercraft/SOURCE.md`)
 - Lua runs in [Fengari](https://fengari.io), patched to behave like CC's Lua 5.1 (see below)
 - Each computer runs in its own Web Worker, so runaway programs hit "Too long without yielding" instead of freezing the page
 - APIs: `term` (incl. `blit`), `fs`, `os` (timers, alarms, labels, clock/time/day), `peripheral`, `redstone`/`rs`, `bit`, `http`
@@ -17,11 +17,15 @@ A browser-based emulator for **ComputerCraft 1.7.10** (CC 1.75 era), with a plan
 ## Running
 
 ```sh
-npm install        # also patches fengari and bundles the ROM
+npm install        # also patches fengari, bundles the ROM and fetches Minecraft 1.7.10 textures
 npm run dev        # http://localhost:5173
 npm run build      # static build in dist/
 npm run test:boot -- "ls" "lua" "1+1"   # boot CraftOS headlessly and print the screen
 ```
+
+## Minecraft textures
+
+Vanilla 1.7.10 textures (GUI, blocks, items, font) are downloaded by `npm run fetch:minecraft` into `public/assets/minecraft/` from a GitHub mirror of the client jar's assets. They belong to Mojang, so they are gitignored and never committed to this repository. Without them the page falls back to a CSS imitation of the Minecraft look.
 
 ## Lua 5.1 compatibility
 
@@ -49,6 +53,6 @@ public/assets/computercraft/textures/   ComputerCraft textures
 3. Peripherals: disk drives, monitors (multiblock), modems + rednet, redstone between blocks
 4. Wired cables/modems, printers, turtles
 5. Save/load worlds, import/export
-6. Import Minecraft 1.7.10 textures from your own `minecraft.jar`
+6. Optional resource packs (e.g. Faithful 32x for 1.7.10)
 
 ComputerCraft code and assets are by Daniel Ratcliffe and are under the ComputerCraft Public License (`vendor/computercraft/LICENSE`).

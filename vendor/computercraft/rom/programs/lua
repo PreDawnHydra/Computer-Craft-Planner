@@ -33,15 +33,13 @@ while bRunning do
 	--term.setTextColour( colours.white )
 
 	local s = read( nil, tCommandHistory, function( sLine )
-		if settings.get( "lua.autocomplete" ) then
-		    local nStartPos = string.find( sLine, "[a-zA-Z0-9_%.]+$" )
-		    if nStartPos then
-		        sLine = string.sub( sLine, nStartPos )
-		    end
-		    if #sLine > 0 then
-	            return textutils.complete( sLine, tEnv )
-	        end
-		end
+	    local nStartPos = string.find( sLine, "[a-zA-Z0-9_%.]+$" )
+	    if nStartPos then
+	        sLine = string.sub( sLine, nStartPos )
+	    end
+	    if #sLine > 0 then
+            return textutils.complete( sLine, tEnv )
+        end
         return nil
 	end )
 	table.insert( tCommandHistory, s )
@@ -68,16 +66,11 @@ while bRunning do
         	while (tResults[n + 1] ~= nil) or (n <= nForcePrint) do
         	    local value = tResults[ n + 1 ]
         	    if type( value ) == "table" then
-        	        local metatable = getmetatable( value )
-        	        if type(metatable) == "table" and type(metatable.__tostring) == "function" then
-        	            print( tostring( value ) )
-        	        else
-                        local ok, serialised = pcall( textutils.serialise, value )
-                        if ok then
-                            print( serialised )
-                        else
-                            print( tostring( value ) )
-                        end
+            	    local ok, serialised = pcall( textutils.serialise, value )
+            	    if ok then
+            	        print( serialised )
+            	    else
+            	        print( tostring( value ) )
             	    end
             	else
             	    print( tostring( value ) )

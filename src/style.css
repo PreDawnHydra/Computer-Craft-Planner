@@ -47,3 +47,17 @@ body {
 .cc-frame { left: 0; top: 0; }
 .cc-screen:focus .cc-frame { filter: brightness(1.08); }
 .mc-hint { padding-block: 6px 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); color: var(--muted); text-align: center; font-size: 18px; }
+
+/* Vanilla textures, when available */
+.mc-textures body {
+  background-image: linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), var(--mc-bg);
+  background-size: auto, 64px 64px;
+}
+.mc-textures .mc-btn {
+  background: none; box-shadow: none;
+  border-style: solid; border-width: 4px 4px 6px;
+  border-image: var(--mc-btn) 2 2 3 fill / 4px 4px 6px stretch;
+  padding: 0 16px; min-height: 40px;
+}
+.mc-textures .mc-btn:hover, .mc-textures .mc-btn:focus-visible { border-image-source: var(--mc-btn-hover); background: none; box-shadow: none; }
+.mc-textures .mc-btn:active { filter: brightness(.9); }

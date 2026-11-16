@@ -10,7 +10,8 @@ import { FileSystem, MemoryMount, FSError, sanitizePath, getName, getDir, openHa
 import preludeSrc from './prelude.lua?raw';
 
 export const SIDES = ['bottom', 'top', 'back', 'front', 'right', 'left'];
-export const HOST = 'ComputerCraft 1.75 (Minecraft 1.7.10)';
+export const CC_VERSION = '1.75';
+export const MC_VERSION = '1.7.10';
 const TIMEOUT_MS = 7000;
 const HARD_TIMEOUT_MS = 8500;
 
@@ -205,8 +206,8 @@ export class Computer {
     if (lua.lua_pcall(L, 1, 0, 0) !== lua.LUA_OK) throw new Error(lua.lua_tojsstring(L, -1));
 
     // Globals CC sets from Java
-    pushValue(L, HOST); lua.lua_setglobal(L, toBytes('_HOST'));
-    pushValue(L, ''); lua.lua_setglobal(L, toBytes('_CC_DEFAULT_SETTINGS'));
+    pushValue(L, CC_VERSION); lua.lua_setglobal(L, toBytes('_CC_VERSION'));
+    pushValue(L, MC_VERSION); lua.lua_setglobal(L, toBytes('_MC_VERSION'));
 
     setGlobalApi(L, 'term', this.termApi());
     setGlobalApi(L, 'fs', this.fsApi());
