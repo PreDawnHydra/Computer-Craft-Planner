@@ -20,4 +20,11 @@ export async function applyMinecraftTheme(root = document.documentElement) {
   } catch (e) {
     // textures not fetched; keep the CSS fallback
   }
+  try {
+    const { buildMinecraftFont } = await import('./mcFont.js');
+    await buildMinecraftFont();
+    root.classList.add('mc-font');
+  } catch (e) {
+    // font texture not available; keep the fallback font
+  }
 }

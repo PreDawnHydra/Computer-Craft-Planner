@@ -61,3 +61,9 @@ body {
 }
 .mc-textures .mc-btn:hover, .mc-textures .mc-btn:focus-visible { border-image-source: var(--mc-btn-hover); background: none; box-shadow: none; }
 .mc-textures .mc-btn:active { filter: brightness(.9); }
+
+/* Minecraft's own font (built from font/ascii.png). Sizes stay on multiples of 8px so pixels are crisp. */
+.mc-font body { font-family: 'Minecraft', 'VT323', ui-monospace, monospace; font-size: 16px; -webkit-font-smoothing: none; font-smooth: never; }
+.mc-font .mc-title { font-size: 16px; text-shadow: 2px 2px 0 #3f3f3f; }
+.mc-font .mc-btn { font-size: 16px; text-shadow: 2px 2px 0 #383838; }
+.mc-font .mc-status, .mc-font .mc-hint { font-size: 16px; text-shadow: 2px 2px 0 #282828; }
