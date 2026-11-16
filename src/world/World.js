@@ -1,0 +1,38 @@
+// Block storage for the world: a sparse map of "x,y,z" -> { type, facing, id, on }.
+export class World {
+  constructor() {
+    this.blocks = new Map();
+    this.listeners = new Set();
+    this.nextComputerId = 0;
+  }
+  key(x, y, z) { return x + ',' + y + ',' + z; }
+  get(x, y, z) { return this.blocks.get(this.key(x, y, z)) || null; }
+  set(x, y, z, block) {
+    const k = this.key(x, y, z);
+    const old = this.blocks.get(k) || null;
+    if (block) this.blocks.set(k, block); else this.blocks.delete(k);
+    for (const fn of this.listeners) fn(x, y, z, block, old);
+  }
+  onChange(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
+  *entries() {
+    for (const [k, b] of this.blocks) { const [x, y, z] = k.split(',').map(Number); yield [x, y, z, b]; }
+  }
+  toJSON() {
+    return { version: 1, nextComputerId: this.nextComputerId, blocks: [...this.entries()].map(([x, y, z, b]) => [x, y, z, b]) };
+  }
+  load(data) {
+    for (const [x, y, z] of [...this.entries()]) this.set(x, y, z, null);
+    this.nextComputerId = data.nextComputerId || 0;
+    for (const [x, y, z, b] of data.blocks) this.set(x, y, z, b);
+  }
+}
+
+export function defaultWorld(world) {
+  for (let x = -12; x < 12; x++) for (let z = -12; z < 12; z++) {
+    world.set(x, -1, z, { type: 'stone' });
+    world.set(x, 0, z, { type: 'grass' });
+  }
+  world.set(0, 1, -3, { type: 'computer_advanced', facing: 4, id: world.nextComputerId++ });
+  world.set(-1, 1, -3, { type: 'planks_oak' });
+  world.set(1, 1, -3, { type: 'planks_oak' });
+}

@@ -32,13 +32,18 @@ export class ComputerHandle {
 
   receive(msg) {
     if (msg.type === 'state') this.state = { on: msg.on, label: msg.label, id: msg.id };
+    if (msg.type === 'term') this.lastSnap = msg.snap;
     for (const fn of this.listeners[msg.type] || []) fn(msg.type === 'term' ? msg.snap : this.state);
   }
 
-  on(type, fn) { this.listeners[type].push(fn); }
+  // subscribe; returns an unsubscribe function
+  on(type, fn) {
+    this.listeners[type].push(fn);
+    return () => { this.listeners[type] = this.listeners[type].filter((f) => f !== fn); };
+  }
   queueEvent(name, ...args) { this.port.postMessage({ type: 'event', name, args }); }
   turnOn() { this.port.postMessage({ type: 'power', action: 'on' }); }
   shutdown() { this.port.postMessage({ type: 'power', action: 'shutdown' }); }
   reboot() { this.port.postMessage({ type: 'power', action: 'reboot' }); }
-  destroy() { this.port.terminate?.(); }
+  destroy() { this.listeners = { term: [], state: [] }; this.port.terminate?.(); }
 }

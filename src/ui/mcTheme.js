@@ -15,6 +15,9 @@ export async function applyMinecraftTheme(root = document.documentElement) {
     // widgets.png: disabled button at y=46, normal at y=66, hover at y=86 (200x20 each)
     root.style.setProperty('--mc-btn', `url(${crop(widgets, 0, 66, 200, 20)})`);
     root.style.setProperty('--mc-btn-hover', `url(${crop(widgets, 0, 86, 200, 20)})`);
+    // hotbar (182x22) and its selection frame (24x24)
+    root.style.setProperty('--mc-hotbar', `url(${crop(widgets, 0, 0, 182, 22)})`);
+    root.style.setProperty('--mc-hotbar-sel', `url(${crop(widgets, 0, 22, 24, 24)})`);
     root.style.setProperty('--mc-bg', `url(${crop(bg, 0, 0, bg.width, bg.height)})`);
     root.classList.add('mc-textures');
   } catch (e) {

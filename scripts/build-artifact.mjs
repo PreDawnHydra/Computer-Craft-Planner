@@ -15,7 +15,14 @@ const files = [];
 const copy = (rel) => { fs.mkdirSync(path.dirname(path.join(out, rel)), { recursive: true }); fs.copyFileSync(path.join(dist, rel), path.join(out, rel)); files.push(rel); };
 for (const f of fs.readdirSync(path.join(dist, 'assets'))) if (/\.(js|css)$/.test(f)) copy('assets/' + f);
 for (const f of fs.readdirSync(path.join(dist, 'assets/computercraft/textures/gui'))) copy('assets/computercraft/textures/gui/' + f);
-copy('assets/computercraft/textures/blocks/computerFrontOnAdvanced.png');
+// block textures referenced by the block registry
+const reg = fs.readFileSync(path.resolve('src/world/blocks.js'), 'utf8');
+const wool = ['white', 'orange', 'magenta', 'light_blue', 'yellow', 'lime', 'pink', 'gray', 'silver', 'cyan', 'purple', 'blue', 'brown', 'green', 'red', 'black'];
+const mcNames = new Set([...reg.matchAll(/mc:([a-z_]+)/g)].map((m) => m[1]).concat(wool.map((c) => 'wool_colored_' + c), ['grass_side_overlay']));
+const ccNames = new Set([...reg.matchAll(/cc:([A-Za-z_]+)/g)].map((m) => m[1]));
+for (const n of mcNames) { const rel = 'assets/minecraft/textures/blocks/' + n + '.png'; if (fs.existsSync(path.join(dist, rel))) copy(rel); }
+for (const n of ccNames) { const rel = 'assets/computercraft/textures/blocks/' + n + '.png'; if (fs.existsSync(path.join(dist, rel))) copy(rel); }
+if (fs.existsSync(path.join(dist, 'assets/minecraft/textures/font/ascii.png'))) copy('assets/minecraft/textures/font/ascii.png');
 for (const f of ['widgets.png', 'options_background.png']) if (fs.existsSync(path.join(dist, 'assets/minecraft/textures/gui', f))) copy('assets/minecraft/textures/gui/' + f);
 fs.writeFileSync(path.join(out, 'files.json'), JSON.stringify(files));
 console.log(files.length, 'files');

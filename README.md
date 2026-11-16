@@ -4,7 +4,18 @@ A browser-based emulator for **ComputerCraft 1.7.10** (CC 1.75 era), with a plan
 
 ## Status
 
-**Milestone 1, one CraftOS computer in the browser** (this branch):
+**Milestone 2, the 3D world** (`milestone-2-world`):
+
+- Creative-mode world in Three.js with Minecraft's face shading, sky and fog
+- Fly with WASD, Space and Shift (Ctrl for speed); mouse look via pointer lock, or drag-to-look where pointer lock isn't available
+- Left click breaks, right click places, middle click picks; 1-9 or the wheel selects; E opens the block list
+- Computers and Advanced Computers face the player when placed, show the "on" front texture, and each runs its own CraftOS in a Worker. Right click opens the terminal; Shift + right click places against it; Esc closes
+- Vanilla blocks with official textures: grass, dirt, stone, planks, logs, bricks, glass, wool, ore blocks and more
+- The world, camera, hotbar and computer power state are saved in IndexedDB
+- Isometric item icons are rendered from the block models, like Minecraft's inventory
+
+
+**Milestone 1, one CraftOS computer in the browser**:
 
 - Real ComputerCraft **1.75** `bios.lua` and CraftOS ROM, the last release for Minecraft 1.7.10 (see `vendor/computercraft/SOURCE.md`)
 - Lua runs in [Fengari](https://fengari.io), patched to behave like CC's Lua 5.1 (see below)
@@ -21,6 +32,7 @@ npm install        # also patches fengari, bundles the ROM and fetches Minecraft
 npm run dev        # http://localhost:5173
 npm run build      # static build in dist/
 npm run test:boot -- "ls" "lua" "1+1"   # boot CraftOS headlessly and print the screen
+node test/world.test.cjs http://localhost:4173/ /tmp   # drive the 3D world in Chromium (after npm run preview)
 ```
 
 ## Minecraft textures
@@ -41,7 +53,8 @@ Fengari implements Lua 5.3. `scripts/patch-fengari.cjs` (run on `postinstall`) a
 
 ```
 src/computer/   Lua runtime: computer.js (state, events, APIs), filesystem.js, terminal.js, prelude.lua, worker/host
-src/ui/         TerminalRenderer (canvas), ComputerScreen (GUI frame + input), LWJGL key map
+src/ui/         TerminalRenderer (canvas), ComputerScreen (GUI frame + input), LWJGL key map, Minecraft font/theme
+src/world/      App (interaction, GUIs, saving), World (block map), WorldRenderer, Controls, blocks registry, textures, raycast
 vendor/computercraft/   bios.lua + rom/ (bundled into src/generated/rom.json by scripts/build-rom.cjs)
 public/assets/computercraft/textures/   ComputerCraft textures
 ```
@@ -49,7 +62,7 @@ public/assets/computercraft/textures/   ComputerCraft textures
 ## Roadmap
 
 1. ~~One working CraftOS computer~~
-2. Three.js world: place and break computers and blocks, open a computer's terminal by clicking it
+2. ~~Three.js world: place and break computers and blocks, open a computer's terminal by clicking it~~
 3. Peripherals: disk drives, monitors (multiblock), modems + rednet, redstone between blocks
 4. Wired cables/modems, printers, turtles
 5. Save/load worlds, import/export
