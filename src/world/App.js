@@ -5,7 +5,7 @@ import { WorldRenderer, IconRenderer } from './WorldRenderer.js';
 import { Controls } from './Controls.js';
 import { raycast } from './raycast.js';
 import { BLOCKS, DEFAULT_HOTBAR, DIRS } from './blocks.js';
-import { ComputerHandle } from '../computer/ComputerHandle.js';
+import { SimClient } from '../sim/SimClient.js';
 import { ComputerScreen } from '../ui/ComputerScreen.js';
 import { loadMeta, saveMeta } from '../computer/storage.js';
 
@@ -16,7 +16,8 @@ export class App {
   constructor(root) {
     this.root = root;
     this.world = new World();
-    this.computers = new Map(); // id -> ComputerHandle
+    this.sim = new SimClient();
+    this.disks = [];
     this.hotbar = DEFAULT_HOTBAR.slice();
     this.slot = 0;
     this.gui = null;
@@ -33,13 +34,36 @@ export class App {
       if (Array.isArray(saved.hotbar)) this.hotbar = saved.hotbar.filter((t) => BLOCKS[t]).concat(DEFAULT_HOTBAR).slice(0, 9);
     } else defaultWorld(this.world);
 
-    // computers already in the world (start the ones that were on)
-    for (const [, , , b] of this.world.entries()) if (BLOCKS[b.type]?.computer) this.spawnComputer(b);
-    this.world.onChange((x, y, z, b, old) => {
-      if (old && BLOCKS[old.type]?.computer && (!b || b.id !== old.id)) this.removeComputer(old.id);
-      if (b && BLOCKS[b.type]?.computer && !this.computers.has(b.id)) this.spawnComputer(b);
+    // hand the world to the simulation, then keep it in sync
+    this.sim.send({ t: 'load', blocks: [...this.world.entries()] });
+    this.sim.send({ t: 'config', httpProxy: this.httpProxy() });
+    this.world.onChange((x, y, z, b) => {
+      if (!this.applyingPatch) this.sim.send({ t: 'set', x, y, z, block: b });
       this.scheduleSave();
     });
+    this.sim.on('patch', (m) => {
+      const b = this.world.get(m.x, m.y, m.z);
+      if (!b) return;
+      this.applyingPatch = true;
+      this.world.set(m.x, m.y, m.z, { ...b, ...m.patch });
+      this.applyingPatch = false;
+    });
+    this.sim.on('state', (m) => {
+      for (const [x, y, z, b] of this.world.entries()) {
+        if (b.id === m.id && BLOCKS[b.type]?.computer) {
+          if (!!b.on !== m.on || (b.label ?? null) !== (m.label ?? null)) {
+            this.applyingPatch = true;
+            this.world.set(x, y, z, { ...b, on: m.on, label: m.label });
+            this.applyingPatch = false;
+          }
+          break;
+        }
+      }
+      if (this.gui?.handle?.id === m.id) this.gui.title.textContent = m.label || `Computer #${m.id}`;
+    });
+    this.sim.on('monitors', (m) => this.renderer.setMonitorGroups(m.groups));
+    this.sim.on('monitorTerm', (m) => this.renderer.setMonitorTerm(m.key, m.snap));
+    this.sim.on('disks', (m) => { this.disks = m.list; if (this.gui?.drive) this.openDrive(this.gui.drive); });
 
     this.icons = new IconRenderer(64);
     this.drawHotbar();
@@ -49,12 +73,17 @@ export class App {
     window.addEventListener('resize', () => this.resize());
     this.resize();
     setInterval(() => this.scheduleSave(), 5000);
-    let last = performance.now();
+    let last = performance.now(), lastDraw = 0;
     const frame = (t) => {
       const dt = Math.min(0.1, (t - last) / 1000); last = t;
-      this.controls.update(dt);
-      this.updateSelection();
-      this.renderer.render();
+      // With a GUI open the world behind it only changes on monitors, so a few frames
+      // a second are enough and the GUI's own canvas stays responsive.
+      if (!this.gui || t - lastDraw > 200) {
+        lastDraw = t;
+        this.controls.update(dt);
+        this.updateSelection();
+        this.renderer.render();
+      }
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
@@ -125,6 +154,7 @@ export class App {
         <h1>ComputerCraft Planner</h1>
         <button class="mc-btn wide" data-act="play">Back to Game</button>
         <button class="mc-btn wide" data-act="inventory">Blocks (E)</button>
+        <button class="mc-btn wide" data-act="http">HTTP Settings...</button>
         <button class="mc-btn wide" data-act="reset">Reset World</button>
         <p class="mc-help">WASD to fly, Space and Shift to go up and down, Ctrl to fly faster.<br>
         Left click breaks, right click places or opens a computer. Shift + right click places against a computer.<br>
@@ -132,12 +162,42 @@ export class App {
       </div>`;
     this.overlay.querySelector('[data-act=play]').onclick = () => this.resume();
     this.overlay.querySelector('[data-act=inventory]').onclick = () => this.openInventory();
+    this.overlay.querySelector('[data-act=http]').onclick = () => this.showHttpSettings();
     const reset = this.overlay.querySelector('[data-act=reset]');
     reset.onclick = () => {
       if (reset.dataset.confirm) { this.resetWorld(); this.resume(); return; }
       reset.dataset.confirm = '1';
       reset.textContent = 'Click again to reset';
     };
+  }
+
+  // Optional CORS proxy for the http API, kept per browser. "{url}" marks where the
+  // encoded address goes; without it the address is appended.
+  httpProxy() {
+    try { return localStorage.getItem('ccemu.httpProxy') || null; } catch (e) { return null; }
+  }
+
+  showHttpSettings() {
+    this.overlay.innerHTML = `
+      <div class="mc-menu">
+        <h1>HTTP Settings</h1>
+        <p class="mc-help">Browsers only let a page read sites that allow it (CORS), so many sites fail with http.get.
+        A CORS proxy you trust fixes that. Leave this empty to connect directly.<br>
+        Example: <code>https://corsproxy.io/?url={url}</code></p>
+        <input class="mc-input" type="text" spellcheck="false" placeholder="Proxy address, with {url} where the address goes">
+        <button class="mc-btn wide" data-act="save">Done</button>
+      </div>`;
+    const input = this.overlay.querySelector('input');
+    input.value = this.httpProxy() || '';
+    input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') save(); });
+    const save = () => {
+      const v = input.value.trim();
+      try { if (v) localStorage.setItem('ccemu.httpProxy', v); else localStorage.removeItem('ccemu.httpProxy'); } catch (e) { /* storage blocked */ }
+      this.sim.send({ t: 'config', httpProxy: v || null });
+      this.showMenu();
+    };
+    this.overlay.querySelector('[data-act=save]').onclick = save;
+    input.focus();
   }
 
   resume() {
@@ -149,33 +209,8 @@ export class App {
 
   // ---------- computers ----------
 
-  spawnComputer(block) {
-    const def = BLOCKS[block.type];
-    const handle = new ComputerHandle({ id: block.id, colour: def.computer !== 'normal', autoOn: !!block.on });
-    handle.on('state', (st) => {
-      for (const [x, y, z, b] of this.world.entries()) {
-        if (b.id === block.id && BLOCKS[b.type]?.computer) {
-          if (!!b.on !== st.on || b.label !== st.label) this.world.set(x, y, z, { ...b, on: st.on, label: st.label });
-          break;
-        }
-      }
-      if (this.gui?.handle === handle) this.gui.title.textContent = st.label || `Computer #${st.id}`;
-    });
-    this.computers.set(block.id, handle);
-  }
-
-  removeComputer(id) {
-    const h = this.computers.get(id);
-    if (!h) return;
-    if (this.gui?.handle === h) this.closeGui();
-    h.shutdown();
-    setTimeout(() => h.destroy(), 200);
-    this.computers.delete(id);
-  }
-
   openComputer(block) {
-    const handle = this.computers.get(block.id);
-    if (!handle) return;
+    const handle = this.sim.computer(block.id);
     if (!handle.state.on) handle.turnOn();
     const def = BLOCKS[block.type];
     this.controls.enabled = false;
@@ -225,9 +260,39 @@ export class App {
     panel.focus();
   }
 
+  // Disk drive GUI: insert a new or existing floppy disk, or eject the one inside
+  openDrive(pos) {
+    const b = this.world.get(...pos);
+    if (!b) return;
+    this.controls.enabled = false;
+    this.controls.unlock();
+    const panel = document.createElement('div');
+    panel.className = 'mc-panel';
+    panel.tabIndex = 0;
+    const name = (d) => d.label ? `${d.label} (#${d.id})` : `Floppy Disk #${d.id}`;
+    const inside = b.disk != null ? (this.disks.find((d) => d.id === b.disk) || { id: b.disk, label: null }) : null;
+    const spare = this.disks.filter((d) => !d.inDrive);
+    panel.innerHTML = `<div class="mc-panel-title">Disk Drive</div>` + (inside
+      ? `<p>Contains <b>${escapeHtml(name(inside))}</b></p><button class="mc-btn wide" data-act="eject">Eject</button>`
+      : `<p>The drive is empty.</p><button class="mc-btn wide" data-act="new">Insert a new floppy disk</button>`
+        + (spare.length ? `<div class="mc-panel-group">Or insert a disk you made before</div><div class="mc-disk-list">${spare.map((d) => `<button class="mc-btn" data-disk="${d.id}">${escapeHtml(name(d))}</button>`).join('')}</div>` : ''))
+      + `<p class="mc-help">Esc closes. Disks keep their files when ejected.</p>`;
+    const send = (action, diskId) => this.sim.send({ t: 'disk', x: pos[0], y: pos[1], z: pos[2], action, diskId });
+    panel.querySelector('[data-act=eject]')?.addEventListener('click', () => send('eject'));
+    panel.querySelector('[data-act=new]')?.addEventListener('click', () => send('insert', 'new'));
+    panel.querySelectorAll('[data-disk]').forEach((el) => el.addEventListener('click', () => send('insert', +el.dataset.disk)));
+    panel.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.code === 'Escape' || e.code === 'KeyE') { e.preventDefault(); this.closeGui(); } });
+    this.overlay.innerHTML = '';
+    this.overlay.hidden = false;
+    this.overlay.append(panel);
+    this.gui = { panel, drive: pos };
+    panel.focus();
+  }
+
   closeGui() {
     if (!this.gui) return;
     this.gui.screen?.destroy();
+    this.gui.drive = null;
     this.gui = null;
     this.overlay.innerHTML = '';
     this.overlay.hidden = true;
@@ -267,7 +332,21 @@ export class App {
     const hit = this.target(e);
     if (!hit) return;
     const b = this.world.get(...hit.pos);
-    if (BLOCKS[b.type]?.computer && !sneaking) { this.openComputer(b); return; }
+    if (!sneaking) {
+      if (BLOCKS[b.type]?.computer) { this.openComputer(b); return; }
+      if (b.type === 'disk_drive') { this.openDrive(hit.pos); return; }
+      if (b.type === 'lever') { this.world.set(...hit.pos, { ...b, on: !b.on }); return; }
+      if (b.type === 'monitor_advanced' || b.type === 'monitor') {
+        const { origin, dir } = this.controls.ray(e?.clientX, e?.clientY);
+        const point = origin.clone().addScaledVector(dir, hit.dist);
+        const mp = this.renderer.monitorPoint(hit.pos, point);
+        // only touches on the screen side count; clicking another face places a block
+        if (mp && DIRS[mp.facing].every((v, i) => v === hit.normal[i])) {
+          if (b.type === 'monitor_advanced') this.sim.send({ t: 'touch', x: hit.pos[0], y: hit.pos[1], z: hit.pos[2], u: mp.u, v: mp.v });
+          return;
+        }
+      }
+    }
     const type = this.hotbar[this.slot];
     if (!type) return;
     const p = [hit.pos[0] + hit.normal[0], hit.pos[1] + hit.normal[1], hit.pos[2] + hit.normal[2]];
@@ -276,7 +355,10 @@ export class App {
     if (Math.floor(cam.x) === p[0] && Math.floor(cam.y) === p[1] && Math.floor(cam.z) === p[2]) return;
     const def = BLOCKS[type];
     const block = { type };
-    if (def.facing) {
+    if (def.attach) {
+      // modems and levers stick to the face that was clicked
+      block.facing = DIRS.findIndex((d) => d[0] === -hit.normal[0] && d[1] === -hit.normal[1] && d[2] === -hit.normal[2]);
+    } else if (def.facing) {
       // front faces the player, like Minecraft
       const dx = cam.x - (p[0] + 0.5), dz = cam.z - (p[2] + 0.5);
       const dir = Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? [1, 0, 0] : [-1, 0, 0]) : (dz > 0 ? [0, 0, 1] : [0, 0, -1]);
@@ -329,7 +411,6 @@ export class App {
   }
 
   resetWorld() {
-    for (const id of [...this.computers.keys()]) this.removeComputer(id);
     const keepId = this.world.nextComputerId;
     this.world.load({ blocks: [], nextComputerId: keepId });
     defaultWorld(this.world);
@@ -337,3 +418,5 @@ export class App {
     this.scheduleSave();
   }
 }
+
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
